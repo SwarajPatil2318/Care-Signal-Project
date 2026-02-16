@@ -31,6 +31,24 @@ export default function CollectPage({ onReportSubmitted }) {
     const [pendingCount, setPendingCount] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [lang, setLang] = useState('en'); // 'en' | 'hi'
+
+    const t = (key) => {
+        if (lang === 'en') return key;
+        const map = {
+            'Reporting Date': 'रिपोर्टिंग तिथि',
+            'Reporting Facility': 'केंद्र का नाम',
+            'Fever': 'बुखार (Fever)',
+            'Respiratory Issue': 'सांस की तकलीफ',
+            'Diarrhea': 'दस्त (Diarrhea)',
+            'Jaundice': 'पीलिया (Jaundice)',
+            'Rash': 'चकत्ते (Rash)',
+            'Neurological': 'नसों की बीमारी (Neurological)',
+            'Cholera': 'हैजा (Cholera)',
+            'Submit Daily Report': 'रिपोर्ट जमा करें'
+        };
+        return map[key] || key;
+    };
 
     // Initial Load
     useEffect(() => {
@@ -176,6 +194,14 @@ export default function CollectPage({ onReportSubmitted }) {
                         <span>{isOnline ? "System Online" : "Offline Mode"}</span>
                     </div>
 
+                    {/* Language Toggle */}
+                    <button
+                        onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors"
+                    >
+                        {lang === 'en' ? '🇺🇸 EN' : '🇮🇳 HI'}
+                    </button>
+
                     {/* Pending Sync */}
                     <div className="text-right">
                         <div className="text-xs text-slate-400 uppercase tracking-wider">Sync Status</div>
@@ -201,7 +227,7 @@ export default function CollectPage({ onReportSubmitted }) {
                     <div className="flex space-x-6">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
-                                <Calendar size={14} className="mr-1" /> Reporting Date
+                                <Calendar size={14} className="mr-1" /> {t('Reporting Date')}
                             </label>
                             <input
                                 type="date"
@@ -213,7 +239,7 @@ export default function CollectPage({ onReportSubmitted }) {
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
-                                <Activity size={14} className="mr-1" /> Reporting Facility
+                                <Activity size={14} className="mr-1" /> {t('Reporting Facility')}
                             </label>
                             <select
                                 value={selectedHospitalId}
@@ -252,7 +278,7 @@ export default function CollectPage({ onReportSubmitted }) {
                                         {syndrome.charAt(0)}
                                     </div>
                                     <span className={`font-medium text-lg ${grid[syndrome] ? 'text-brand-900' : 'text-slate-700'}`}>
-                                        {syndrome}
+                                        {t(syndrome)}
                                     </span>
                                 </div>
 
@@ -303,7 +329,7 @@ export default function CollectPage({ onReportSubmitted }) {
                             ) : (
                                 <>
                                     <Save size={20} />
-                                    <span>Submit Daily Report</span>
+                                    <span>{t('Submit Daily Report')}</span>
                                 </>
                             )}
                         </button>

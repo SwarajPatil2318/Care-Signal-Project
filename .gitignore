@@ -1,0 +1,29 @@
+# General
+.DS_Store
+.env
+.env.local
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+*.db
+*.sqlite3
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.next/
+
+# Project Specific
+caresignal.db
+server/caresignal.db

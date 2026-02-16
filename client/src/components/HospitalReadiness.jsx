@@ -1,24 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Activity, Users, AlertTriangle, CheckCircle, Clock, Battery, Droplet, Wind, Pill, Bed, Thermometer } from 'lucide-react';
+import ResourceNetworkWidget from './ResourceNetworkWidget';
 
 export default function HospitalReadiness({ caseReports }) {
+    const [globalSignals, setGlobalSignals] = useState([]);
+
+    useEffect(() => {
+        axios.get('http://localhost:8000/signals')
+            .then(res => setGlobalSignals(res.data))
+            .catch(err => console.error("Failed to fetch DHO signals", err));
+    }, []);
+
     // 1. Calculate Summary Metrics
-    const totalReports = caseReports.length;
+    const today = new Date().toDateString();
+    const todaysReports = caseReports.filter(r => new Date(r.timestamp || Date.now()).toDateString() === today);
+    const totalReports = todaysReports.length;
     const pendingUploads = caseReports.filter(r => r.status === 'pending').length;
 
-    // Aggregate Cases by Syndrome
-    const syndromeCounts = caseReports.reduce((acc, report) => {
+    // Aggregate Cases by Syndrome (Local PENDING Reports Only)
+    const pendingSyndromeCounts = caseReports
+        .filter(r => r.status === 'pending')
+        .reduce((acc, report) => {
+            const s = report.syndrome;
+            acc[s] = (acc[s] || 0) + report.count;
+            return acc;
+        }, {});
+
+    // Top Syndrome Calculation (Based on Today's Activity)
+    const todaysSyndromeCounts = todaysReports.reduce((acc, report) => {
         const s = report.syndrome;
         acc[s] = (acc[s] || 0) + report.count;
         return acc;
     }, {});
+    const topSyndrome = Object.entries(todaysSyndromeCounts).sort((a, b) => b[1] - a[1])[0];
 
-    const topSyndrome = Object.entries(syndromeCounts).sort((a, b) => b[1] - a[1])[0];
+    // 2. "The Logic" - Data Sync Strategy
+    // Total Load = (Global DHO Signals) + (Local Pending Uploads)
+    const getSignalCount = (syndrome) => {
+        const activeSignals = globalSignals.filter(s => s.status !== 'Resolved');
+        return activeSignals
+            .filter(s => s.syndrome === syndrome)
+            .reduce((acc, s) => acc + (s.value || 0), 0);
+    };
 
-    // 2. "The Logic" - Translator
-    const feverCount = syndromeCounts['Fever'] || 0;
-    const choleraCount = syndromeCounts['Cholera'] || 0;
-    const respiratoryCount = syndromeCounts['Respiratory Issue'] || syndromeCounts['Respiratory'] || 0; // Handle partial matches
+    const feverCount = (pendingSyndromeCounts['Fever'] || 0) + getSignalCount('Fever');
+    const choleraCount = (pendingSyndromeCounts['Cholera'] || 0) + getSignalCount('Cholera');
+
+    // Handle partial matches for Respiratory
+    const pendingRespiratory = (pendingSyndromeCounts['Respiratory Issue'] || pendingSyndromeCounts['Respiratory'] || 0);
+    const signalRespiratory = getSignalCount('Respiratory Issue') + getSignalCount('Respiratory');
+    const respiratoryCount = pendingRespiratory + signalRespiratory;
 
     // Static Mock Stock (Reference)
     const currentStock = {
@@ -65,8 +97,8 @@ export default function HospitalReadiness({ caseReports }) {
 
         return (
             <div className={`p-5 rounded-xl border transition-all duration-300 ${isCritical
-                    ? 'bg-red-50 border-red-200 shadow-lg shadow-red-100 animate-pulse-slow'
-                    : 'bg-white border-slate-200 shadow-sm'
+                ? 'bg-red-50 border-red-200 shadow-lg shadow-red-100 animate-pulse-slow'
+                : 'bg-white border-slate-200 shadow-sm'
                 }`}>
                 <div className="flex justify-between items-start mb-4">
                     <div className={`p-2 rounded-lg ${isCritical ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
@@ -199,6 +231,11 @@ export default function HospitalReadiness({ caseReports }) {
                 </div>
             </div>
 
-        </div>
+            <ResourceNetworkWidget
+                localStock={currentStock}
+                projections={projections}
+            />
+
+        </div >
     );
 }

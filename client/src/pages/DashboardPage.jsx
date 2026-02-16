@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Clock, CheckCircle, User, ArrowRight, BarChart2, Activity, Map, BrainCircuit } from 'lucide-react';
+import { Clock, CheckCircle, User, ArrowRight, BarChart2, Activity, Map, BrainCircuit, Megaphone, MessageSquare, Send } from 'lucide-react';
 import SignalChart from '../components/SignalChart';
 import ZoneMap from '../components/ZoneMap';
 
@@ -9,6 +9,8 @@ export default function DashboardPage({ onNavigate }) {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('Pending'); // 'Pending', 'Resolved'
     const [showMap, setShowMap] = useState(false);
+    const [showBroadcastModal, setShowBroadcastModal] = useState(false); // New State
+    const [broadcastToast, setBroadcastToast] = useState(null); // New State for Toast
     const [zones, setZones] = useState({}); // { 1: "North", 2: "South" }
     const [forecasts, setForecasts] = useState({}); // { zoneId: { risk_level: 'High', ... } }
 
@@ -16,7 +18,77 @@ export default function DashboardPage({ onNavigate }) {
         fetchSignals();
     }, []);
 
-    // Modal Wrapper
+    // Broadcast Modal Component
+    const BroadcastModal = () => {
+        // Auto-fill Logic
+        const highPrioritySignal = signals.find(s => s.severity === 'High' && s.status !== 'Resolved');
+
+        const defaultTemplate = highPrioritySignal
+            ? `⚠️ DHO ALERT: ${highPrioritySignal.syndrome} spike detected in ${highPrioritySignal.zone?.name || 'affected zone'}. Predicted risk: High. Action: Initiate Containment Protocol. Reply ACK to confirm.`
+            : "⚠️ DHO ALERT: Anomaly detected. Please report status immediately.";
+
+        const [message, setMessage] = useState(defaultTemplate);
+
+        const handleSend = (channel) => {
+            setShowBroadcastModal(false);
+            const targetZone = highPrioritySignal?.zone?.name || "North Ward";
+            setBroadcastToast(`Broadcast sent to 45 registered Field Workers in ${targetZone} via ${channel}.`);
+            setTimeout(() => setBroadcastToast(null), 4000);
+        };
+
+        return (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
+                        <h2 className="text-white font-bold flex items-center">
+                            <Megaphone className="mr-2 text-red-500" size={20} />
+                            Emergency Communication Protocol
+                        </h2>
+                        <button onClick={() => setShowBroadcastModal(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Target Audience</label>
+                            <div className="w-full p-2 bg-slate-50 border border-slate-200 rounded text-sm text-slate-700 font-medium flex items-center">
+                                <User size={14} className="mr-2 text-slate-400" />
+                                All Field Workers (ASHA/ANM) - {highPrioritySignal?.zone?.name || "Active Zones"}
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Broadcast Message</label>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                className="w-full h-32 p-3 bg-amber-50 border border-amber-200 rounded-lg text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                            ></textarea>
+                            <p className="text-right text-xs text-slate-400 mt-1">{message.length} chars</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => handleSend('SMS')}
+                                className="flex items-center justify-center py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                            >
+                                <MessageSquare size={18} className="mr-2 text-blue-500" />
+                                Send via SMS
+                            </button>
+                            <button
+                                onClick={() => handleSend('WhatsApp')}
+                                className="flex items-center justify-center py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-emerald-200"
+                            >
+                                <Send size={18} className="mr-2" />
+                                Send via WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Modal Wrapper (Existing)
     const MapModal = () => {
         const [selectedZone, setSelectedZone] = useState(null);
         const [zoneName, setZoneName] = useState("");
@@ -135,8 +207,18 @@ export default function DashboardPage({ onNavigate }) {
     const pendingTotal = signals.filter(s => s.status !== 'Resolved').length;
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 relative">
             {showMap && <MapModal />}
+            {showBroadcastModal && <BroadcastModal />}
+
+            {/* Success Toast for Broadcast */}
+            {broadcastToast && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center animate-bounce-in">
+                    <CheckCircle className="mr-2 text-emerald-400" size={20} />
+                    <span className="font-medium text-sm">{broadcastToast}</span>
+                </div>
+            )}
+
             {/* Control Tower Header */}
             <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
                 <div className="flex items-center space-x-4">
@@ -150,6 +232,14 @@ export default function DashboardPage({ onNavigate }) {
                 </div>
 
                 <div className="flex items-center space-x-6">
+                    <button
+                        onClick={() => setShowBroadcastModal(true)}
+                        className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm animate-pulse-slow"
+                    >
+                        <Megaphone size={16} />
+                        <span>Broadcast Alert</span>
+                    </button>
+
                     <button
                         onClick={() => setShowMap(true)}
                         className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
